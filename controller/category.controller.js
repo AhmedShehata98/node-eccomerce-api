@@ -5,8 +5,11 @@ const { Category } = require("../model/category.model");
 // @mrouter GET /api/v1/categories
 // @access public
 exports.getCategories = async (_, res) => {
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 8;
+  const skip = (page - 1) * limit;
   try {
-    const categories = await Category.find({});
+    const categories = await Category.find({}).limit(limit).skip(skip);
     res.status(200).json({ status: true, data: categories });
   } catch (error) {
     res.status(204).send({
