@@ -1,6 +1,7 @@
 const { Brand } = require("../model/brand.model");
 const GlobalErrorHandler = require("../middleware/errorHandling");
 const { default: slugify } = require("slugify");
+const { validationResult } = require("express-validator");
 
 // @route  GET /api/v1/brands?page=number&limit=number
 // @desc get list of brands
@@ -25,7 +26,7 @@ exports.getBrands = async (req, res) => {
   } catch (error) {
     const errSchema = new GlobalErrorHandler(
       error.message,
-      error.statusCode
+      error.statusCode || 409
     ).getErrorObject();
     res.status(errSchema.statusCode).json(errSchema.message);
   }
@@ -36,26 +37,22 @@ exports.getBrandById = async (req, res) => {
   const { page = 1, limit = 4 } = req.query;
   const skip = (page - 1) * limit;
   const { id } = req.params;
-  try {
-    const brand = await Brand.findById(id).limit(limit).skip(skip);
-    if (brand) {
-      return res
-        .status(200)
-        .json({ status: true, result: brand?.length || 1, data: brand });
-    }
-    //
-    const errSchema = new GlobalErrorHandler(
-      `there's no brands with this id : ${id}`,
-      404
-    ).getErrorObject();
-    return res.status(404).json(errSchema);
-  } catch (error) {
-    const errSchema = new GlobalErrorHandler(
-      error.message,
-      error.statusCode
-    ).getErrorObject();
-    res.status(errSchema.statusCode).json(errSchema);
+  // validator starts
+  const validatorError = validationResult(req);
+  if (!validatorError.isEmpty()) {
+    return res.status(409).json(validatorError.array());
   }
+  const brand = await Brand.findById(id).limit(limit).skip(skip);
+  if (brand) {
+    return res
+      .status(200)
+      .json({ status: true, result: brand?.length || 1, data: brand });
+  }
+  const errorRes = new GlobalErrorHandler(
+    `can't found id's with id : ${id}`,
+    404
+  ).getErrorObject();
+  res.status(errorRes.statusCode).json(errorRes);
 };
 
 // @route POST /api/v1/brands
@@ -74,9 +71,9 @@ exports.createBrand = async (req, res) => {
   } catch (error) {
     const errSchema = new GlobalErrorHandler(
       error.message,
-      error.statusCode
+      error.statusCode || 409
     ).getErrorObject();
-    res.status(error.statusCode || 409).json(errSchema);
+    res.status(error.statusCode).json(errSchema);
   }
 };
 
@@ -92,6 +89,7 @@ exports.updateBrand = async (req, res) => {
       { name, slug: slugify(name), image },
       { new: true }
     );
+
     if (newBrand) {
       return res.status(200).json({ status: true, result: 1, data: newBrand });
     } else {

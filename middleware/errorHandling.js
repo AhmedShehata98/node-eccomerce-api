@@ -11,7 +11,7 @@ module.exports = class GlobalErrorHandler extends Error {
         message: this.errorMessage,
         error: this.message,
         statusCode: this.statusCode,
-        stack: this.stack,
+        stack: this.stack.split("\n"),
         name: this.name,
         data: [],
         status: false,
