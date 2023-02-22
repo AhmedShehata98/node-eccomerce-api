@@ -1,23 +1,27 @@
 const slugify = require("slugify");
+const GlobalErrorHandler = require("../middleware/errorHandling");
 const { Category } = require("../model/category.model");
 
 // @desc get all categories
 // @mrouter GET /api/v1/categories
 // @access public
-exports.getCategories = async (_, res) => {
+exports.getCategories = async (req, res) => {
   const page = req.query.page || 1;
   const limit = req.query.limit || 8;
   const skip = (page - 1) * limit;
   try {
     const categories = await Category.find({}).limit(limit).skip(skip);
-    res.status(200).json({ status: true, data: categories });
+    res
+      .status(200)
+      .json({ status: true, length: categories?.length, data: categories });
+    return;
   } catch (error) {
-    res.status(204).send({
-      status: false,
-      error: error.message,
-      message: "no categories here",
-      data: [],
-    });
+    const errorSchema = new GlobalErrorHandler(
+      "there is no categories here",
+      400
+    ).getErrorObject();
+    res.status(errorSchema.statusCode).json(errorSchema);
+    return;
   }
 };
 
@@ -29,13 +33,21 @@ exports.getCategory = async (req, res) => {
 
   try {
     const category = await Category.findById(id);
+    if (!category) {
+      const errorShema = new GlobalErrorHandler(
+        `no category founded with id : ${id}`,
+        404
+      );
+      res.status(errorShema.statusCode).json(errorShema);
+    }
     res.status(200).json({ status: true, data: category });
   } catch (error) {
-    res.status(404).json({
-      state: false,
-      message: `there's no category available with this id :${id}`,
-      error: error.message,
-    });
+    const errorShema = new GlobalErrorHandler(
+      "id that you are entering is not a valid id format",
+      400
+    ).getErrorObject();
+    res.status(errorShema.statusCode).json(errorShema);
+    return;
   }
 };
 
@@ -58,11 +70,11 @@ exports.createCategory = async (req, res) => {
       data: category,
     });
   } catch (err) {
-    res.status(400).send({
-      status: false,
-      message: "i can't create this",
-      data: err.message,
-    });
+    const errorSchema = new GlobalErrorHandler(
+      "there is something wrong with body your sent",
+      400
+    ).getErrorObject();
+    res.status(errorSchema.statusCode).json(errorSchema);
   }
 };
 
@@ -81,12 +93,11 @@ exports.updateCategory = async (req, res) => {
     );
     res.status(200).json({ status: true, data: newCategory });
   } catch (error) {
-    res.status(404).json({
-      status: false,
-      message: `cant find category with id : ${id}`,
-      error: error.message,
-      data: [],
-    });
+    const errorSchema = new GlobalErrorHandler(
+      "there is a problem updating maybe your body is invalid",
+      400
+    ).getErrorObject();
+    res.status(errorSchema.statusCode).json(errorSchema);
   }
 };
 
@@ -94,17 +105,17 @@ exports.updateCategory = async (req, res) => {
 // @route DELETE /api/v1/categories/:id
 // @ accsss private
 exports.deleteCategory = async (req, res) => {
-  const { id } = req.body;
+  const { id } = req.params;
 
   try {
     const deletedCategory = await Category.findByIdAndDelete(id, { new: true });
-    req.status(200).json({ status: true, data: deletedCategory });
+    return req.status(200).json({ status: true, data: deletedCategory });
   } catch (error) {
-    req.status(404).json({
-      status: false,
-      error: error.message,
-      message: `cant find category with this id : ${id}`,
-      data: [],
-    });
+    const errorSchema = new GlobalErrorHandler(
+      `there was an error deleting not founded id : ${id}`,
+      404
+    ).getErrorObject();
+    res.status(errorSchema.statusCode).json(errorSchema);
+    return;
   }
 };
